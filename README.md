@@ -1,7 +1,13 @@
 # MFM_random_reading
 
 Install dependencies:
-pip install pymodbus paho-mqtt windows-curses
+pip install -r requirements.txt
+
+paho-mqtt==2.1.0
+pymodbus==2.5.3
+termcolor==3.1.0
+windows-curses==2.4.1
+
 
 Run Client_Rpi_Modbus_SM.py with terminal full screen to get output. 
 
