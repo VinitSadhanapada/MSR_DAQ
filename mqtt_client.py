@@ -6,11 +6,11 @@ import datetime
 
 
 # HiveMQ Cloud details
-BROKER = "a90b8fc6c0114ea4a4a6d6af39322fba.s1.eu.hivemq.cloud"
+BROKER = "e24c6c7ae8e44974b37991fbb4bef22f.s1.eu.hivemq.cloud"
 PORT = 8883
-USERNAME = "ishamsr"
-PASSWORD = "Mahadev@123"
-TOPIC = "isha/MSR25"
+USERNAME = "hivemq.webclient.1752922048213"
+PASSWORD = "NEuAz>7$w25JH@fcW0k&"
+TOPIC = "MONKEY"
 CLUSTER ="E0"
 
 CONNECTION_CHECK_INTERVAL = 15 # 15 sec
