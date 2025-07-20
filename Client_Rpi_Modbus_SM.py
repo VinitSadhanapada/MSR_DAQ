@@ -1,4 +1,4 @@
-from pymodbus.client.sync import ModbusSerialClient as ModbusClient
+from pymodbus.client import ModbusSerialClient as ModbusClient
 import time
 import datetime
 import csv
@@ -11,6 +11,7 @@ import elmeasure_LG5310 as LG5310
 import elmeasure_EN8410 as EN8410
 import elmeasure_iELR300 as ELR300
 import mqtt_client as mqtt
+import random
 
 UNIT = 0x1
 #PORT = "/dev/ttyUSB0"
@@ -156,9 +157,9 @@ def printRegValues_2(TotalReadings, stdscr):
     stdscr.addstr(row, 50, str(Parameters[y+2]))
     stdscr.addstr(row, 66, str(Parameters[y+3]))
     stdscr.addstr(row, 82, str(Parameters[y+4]))
-    stdscr.addstr(row, 98, str(Parameters[y+5]))
-    stdscr.addstr(row, 114, str(Parameters[y+6]))
-    stdscr.addstr(row, 130, str(Parameters[y+7]))
+    stdscr.addstr(row, 86, str(Parameters[y+5]))
+    stdscr.addstr(row, 90, str(Parameters[y+6]))
+    stdscr.addstr(row, 100, str(Parameters[y+7]))
     for x in range(NoOfDevices):
         row = row+1
         stdscr.addstr(row, 0, deviceNames[x])
@@ -167,9 +168,9 @@ def printRegValues_2(TotalReadings, stdscr):
         stdscr.addstr(row, 50, str(allRegValues[x][y+2]))
         stdscr.addstr(row, 66, str(allRegValues[x][y+3]))
         stdscr.addstr(row, 82, str(allRegValues[x][y+4]))
-        stdscr.addstr(row, 98, str(allRegValues[x][y+5]))
-        stdscr.addstr(row, 114, str(allRegValues[x][y+6]))
-        stdscr.addstr(row, 130, str(allRegValues[x][y+7]))
+        stdscr.addstr(row, 86, str(allRegValues[x][y+5]))
+        stdscr.addstr(row, 90, str(allRegValues[x][y+6]))
+        stdscr.addstr(row, 100, str(allRegValues[x][y+7]))
        
     # Print Frequency
     y = Parameters.index(LG6400.FREQUENCY_STR) # Frequency stsrt from 5th position
@@ -257,6 +258,14 @@ def ReadMeterDataDefault(client, Address, deviceID):
     returnVal = [0] * len(Parameters)
     return returnVal
 
+def SimulateMeterData():
+    now = datetime.datetime.now()
+    regValue = [now.strftime("%Y-%m-%d %H:%M:%S")] 
+    # Gen radnom values for each parameter, except time.
+    for _ in range(1, len(Parameters)):
+        regValue.append(round(random.uniform(0, 500), 2)) # Example Range
+    return regValue
+
 ##########################################################################
 # Function to read meter data and print, store it in a file
 ##########################################################################
@@ -288,8 +297,12 @@ def ReadAndProcessMeterData(client, deviceID, csvFilePointer):
 
     # Publish to the mqtt
     global published_msg
-    published_msg = mqtt.publish_message(Parameters, regValue, deviceNames[deviceID-1])
 
+    # Simulated Data for testing
+    regValue = SimulateMeterData()
+    csvFilePointer.writerow(regValue)
+    
+    published_msg = mqtt.publish_message(Parameters, regValue, deviceNames[deviceID-1])
     allRegValues[deviceID-1] = regValue.copy()
 
 ##########################################################################
@@ -311,17 +324,19 @@ def mainFunction(stdscr):
 
     errorFile = open(ERROR_FILE_NAME, "a")
 
+    # Simulation mode
+    client = None
+    #client = ModbusClient(port = PORT, stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600, timeout = 0.5)
 
-    client = ModbusClient(method = "rtu", port = PORT, stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600, timeout = 0.5)
 
-    #modify port with com port of the USB device (eg COM3 in windows or /dev/ttyUSB0 in linux)
+    """modify port with com port of the USB device (eg COM3 in windows or /dev/ttyUSB0 in linux)
     try:
         client.connect()
     except:
         print ("Unable to connect the meter")
         errorFile.write("Unable to connect the meter\n")
         connected = 0
-    
+    """
     mqtt.mqtt_main() # Initialize mqtt and connect to the broker
 
     # Open file and initialize it 
@@ -332,6 +347,7 @@ def mainFunction(stdscr):
         csvFilePointer[x].writerow(Parameters)
     
     for x in range(NoOfDevices):
+        regValue = SimulateMeterData()  # Generate simulated data for initialization
         allRegValues.append(regValue.copy())
 
     while connected:
@@ -340,10 +356,16 @@ def mainFunction(stdscr):
 
         for x in range(NoOfDevices):
             UNIT = x+1
-
-            ReadAndProcessMeterData(client, UNIT, csvFilePointer[x])
+            # Use simulated data
+            regValue = SimulateMeterData()
+            csvFilePointer[x].writerow(regValue)
+            published_msg = mqtt.publish_message(Parameters, regValue, deviceNames[x])
+            allRegValues[x] = regValue.copy()
+            #ReadAndProcessMeterData(client, UNIT, csvFilePointer[x])
 
             time.sleep(intervalBwMeter)
+        printRegValues_2(TotalReadings, stdscr)
+        time.sleep(intervalBwReadings)
         #     # print ("\n")
 
         #printRegValues_1(TotalReadings)
@@ -351,9 +373,9 @@ def mainFunction(stdscr):
         time.sleep(readingInterval)
         # print ("\n")
         # print ("----****----****----")
-
-    if connected:
-        client.close()
+    errorFile.close()
+    #if connected:
+    #    client.close()
 
 #########################################################################################
 #########################################################################################
